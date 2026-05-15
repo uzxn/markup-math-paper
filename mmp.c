@@ -1,26 +1,26 @@
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define WORD_TITLE          "# "
-#define WORD_CHAPTER        "## "
-#define WORD_INDENT_1       "> "
-#define WORD_INDENT_2       "> > "
-#define WORD_INDENT_3       "> > > "
-#define WORD_INDENT_4       "> > > > "
-#define WORD_QUESTION       "* "
-#define WORD_OPTION_1       "1. "
-#define WORD_OPTION_2       "2. "
-#define WORD_OPTION_3       "3. "
-#define WORD_OPTION_4       "4. "
-#define WORD_NEWLINE        "---"
-#define WORD_PLACEHOLDER    "[placeholder]"
+#define WORD_TITLE        "# "
+#define WORD_CHAPTER      "## "
+#define WORD_INDENT_1     "t "
+#define WORD_INDENT_2     "tt "
+#define WORD_INDENT_3     "ttt "
+#define WORD_INDENT_4     "tttt "
+#define WORD_QUESTION     "q "
+#define WORD_OPTION_1     "o "
+#define WORD_OPTION_2     "oo "
+#define WORD_OPTION_4     "oooo "
+#define WORD_NEWLINE      "---"
+#define WORD_PLACEHOLDER  "[placeholder]"
 
-#define STR_SIZE            (1 << 12)
-#define str_equal(s1, s2)   (strcmp(s1, s2) == 0)
-#define str_equal_n(s1, s2) (strncmp(s1, s2, strlen(s2)) == 0)
-#define next_letter(c)      (c == 'Z' ? 'Z' : c + 1)
+#define STR_SIZE          (1 << 12)
+#define str_equal(a, b)   (strcmp(a, b) == 0)
+#define str_equal_n(a, b) (strncmp(a, b, strlen(b)) == 0)
+#define next_letter(c)    (c == 'Z' ? 'Z' : c + 1)
 #define error_exit(...)                     \
   do {                                      \
     fprintf(stderr, "error: " __VA_ARGS__); \
@@ -31,8 +31,8 @@
 typedef char string[STR_SIZE];
 
 // 去掉 fgets 读入字符串末尾的换行符
-char* fgets_no_endl(char* str, int size, FILE* stream) {
-  char* ret = fgets(str, size, stream);
+char* fgets_no_endl(char* str, int size, FILE* file) {
+  char* ret = fgets(str, size, file);
   if (ret == NULL) return NULL;
   size_t len = strlen(str);
   if (len > 0 && str[len - 1] == '\n') str[len - 1] = '\0';
@@ -42,7 +42,7 @@ char* fgets_no_endl(char* str, int size, FILE* stream) {
 // 获取关键字之后的具体内容
 char* get_content(char* str) {
   char* ret = strchr(str, ' ');
-  if (ret == NULL) return str + strlen(str);
+  if (ret == NULL) return str;
   return ret + 1;
 }
 
@@ -97,49 +97,65 @@ int main(int argc, char** argv) {
 
   unsigned question_count = 0;
   char option_letter = 'A' - 1;
+  bool option_div_open = false;
   while (fgets_no_endl(line, STR_SIZE, input) != NULL) {
-    if (strlen(line) == 0) continue;
+    if (strlen(line) == 0) continue;  // 跳过空行
     char* content = get_content(line);
-    if (str_equal_n(line, WORD_TITLE)) {  // 标题
-      fprintf(output, "<div class='title'>%s</div>", content);
-      fprintf(output, "<div class='subject'>数&emsp;学</div>");
-    } else if (str_equal_n(line, WORD_CHAPTER)) {  // 小节标题
-      fprintf(output, "<div class='chapter'>%s</div>", content);
-    } else if (str_equal_n(line, WORD_QUESTION)) {  // 题干
-      question_count++, option_letter = 'A' - 1;
-      fprintf(output, "<div class='question'>");
-      if (question_count <= 9) fprintf(output, "&ensp;");
-      fprintf(output, "%u．", question_count);
-      if (question_count >= 15) {
-        fprintf(output, "<span style='margin-left: -0.5em'>%s</span>", content);
-      } else {
-        fprintf(output, "%s", content);
+    // 选择题选项
+    if (str_equal_n(line, WORD_OPTION_1) || str_equal_n(line, WORD_OPTION_2) || str_equal_n(line, WORD_OPTION_4)) {
+      if (!option_div_open) {
+        option_div_open = true;
+        if (str_equal_n(line, WORD_OPTION_1)) {
+          fprintf(output, "<div class='option-1'>\n");
+        } else if (str_equal_n(line, WORD_OPTION_2)) {
+          fprintf(output, "<div class='option-2'>\n");
+        } else {
+          fprintf(output, "<div class='option-4'>\n");
+        }
       }
-      fprintf(output, "</div>");
-    } else if (str_equal_n(line, WORD_OPTION_1)) {  // 选择题选项 1
       option_letter = next_letter(option_letter);
-      fprintf(output, "<span class='option-1'>%c．%s</span>", option_letter, content);
-    } else if (str_equal_n(line, WORD_OPTION_2)) {  // 选择题选项 2
-      option_letter = next_letter(option_letter);
-      fprintf(output, "<span class='option-2'>%c．%s</span>", option_letter, content);
-    } else if (str_equal_n(line, WORD_OPTION_3)) {  // 选择题选项 3
-      option_letter = next_letter(option_letter);
-      fprintf(output, "<span class='option-3'>%c．%s</span>", option_letter, content);
-    } else if (str_equal_n(line, WORD_OPTION_4)) {  // 选择题选项 4
-      option_letter = next_letter(option_letter);
-      fprintf(output, "<span class='option-4'>%c．%s</span>", option_letter, content);
-    } else if (str_equal_n(line, WORD_INDENT_1)) {  // 1 缩进
-      fprintf(output, "<div>&emsp;&emsp;%s</div>", content);
-    } else if (str_equal_n(line, WORD_INDENT_2)) {  // 2 缩进
-      fprintf(output, "<div>&emsp;&emsp;&emsp;&emsp;%s</div>", content);
-    } else if (str_equal_n(line, WORD_INDENT_3)) {  // 3 缩进
-      fprintf(output, "<div>&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;%s</div>", content);
-    } else if (str_equal_n(line, WORD_INDENT_4)) {  // 4 缩进
-      fprintf(output, "<div>&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;%s</div>", content);
-    } else if (str_equal_n(line, WORD_NEWLINE)) {  // 换行
-      fprintf(output, "<br />");
+      fprintf(output, "<div>%c．%s</div>\n", option_letter, content);
     } else {
-      fprintf(output, "%s", line);
+      if (option_div_open) {
+        option_div_open = false;
+        fprintf(output, "</div>\n");
+      }
+      // 标题
+      if (str_equal_n(line, WORD_TITLE)) {
+        fprintf(output, "<div class='title'>%s</div>\n", content);
+        fprintf(output, "<div class='subject'>数&emsp;学</div>\n");
+      }
+      // 小节标题
+      else if (str_equal_n(line, WORD_CHAPTER)) {
+        fprintf(output, "<div class='chapter'>%s</div>\n", content);
+      }
+      // 题干
+      else if (str_equal_n(line, WORD_QUESTION)) {
+        question_count++, option_letter = 'A' - 1;
+        fprintf(output, "<div class='question'>");
+        if (question_count <= 9) fprintf(output, "&ensp;");
+        fprintf(output, "%u．", question_count);
+        if (question_count >= 15) {
+          fprintf(output, "<span style='margin-left: -0.5em'>%s</span>", content);
+        } else {
+          fprintf(output, "%s", content);
+        }
+        fprintf(output, "</div>\n");
+      }
+      // 1 缩进
+      else if (str_equal_n(line, WORD_INDENT_1)) {
+        fprintf(output, "<div>&emsp;&emsp;%s</div>\n", content);
+      } else if (str_equal_n(line, WORD_INDENT_2)) {  // 2 缩进
+        fprintf(output, "<div>&emsp;&emsp;&emsp;&emsp;%s</div>\n", content);
+      } else if (str_equal_n(line, WORD_INDENT_3)) {  // 3 缩进
+        fprintf(output, "<div>&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;%s</div>\n", content);
+      } else if (str_equal_n(line, WORD_INDENT_4)) {  // 4 缩进
+        fprintf(output, "<div>&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;%s</div>\n", content);
+      } else if (str_equal_n(line, WORD_NEWLINE)) {  // 换行
+        fprintf(output, "<br />\n");
+      } else {
+        fprintf(output, "<div>%s</div>\n", line);
+      }
     }
   }
 

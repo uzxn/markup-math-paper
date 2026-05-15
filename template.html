@@ -65,21 +65,20 @@
       }
       .option-1,
       .option-2,
-      .option-3,
       .option-4 {
-        position: absolute;
+        display: grid;
+        text-indent: -1.7em;
+        padding-left: 3.7em;
+        align-items: baseline;
       }
       .option-1 {
-        left: 2em;
+        grid-template-columns: 9em 9em 9em 9em;
       }
       .option-2 {
-        left: 11em;
-      }
-      .option-3 {
-        left: 20em;
+        grid-template-columns: 18em 18em;
       }
       .option-4 {
-        left: 29em;
+        grid-template-columns: 36em;
       }
       @media print {
         @page {
